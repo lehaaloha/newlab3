@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form action="{{ url_for('upload_image') }}" method="post" enctype="multipart/form-data">
+    <fieldset>
+        <legend>Загрузка и обработка изображения</legend>
+        
+        <div class="form-group">
+            <label for="file">Выберите файл изображения:</label>
+            <input type="file" id="file" name="file" accept="image/*" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="captcha_input">Введите код: <strong>{{ captcha_text }}</strong></label>
+            <input type="text" id="captcha_input" name="captcha_input" required>
+            <input type="hidden" name="captcha_text" value="{{ captcha_text }}">
+        </div>
+        
+        <button type="submit">Обработать изображение</button>
+    </fieldset>
+</form>
+
+<div class="info">
+    <h3>Что делает приложение:</h3>
+    <ul>
+        <li>Разбивает изображение на 4 части</li>
+        <li>Сдвигает части по часовой стрелке</li>
+        <li>Строит график распределения цветов</li>
+        <li>Классифицирует изображение с помощью нейросети</li>
+    </ul>
+</div>
+{% endblock %}
