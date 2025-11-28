@@ -18,11 +18,12 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 # Создаем папку для загрузок
-os.makedtry:
+# Создаем папку для загрузок
+try:
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 except FileExistsError:
     # Папка уже существует - это нормально
-    passirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    pass
 
 
 # Загрузка модели нейросети для классификации
@@ -162,3 +163,4 @@ def upload_image():
 if __name__ == '__main__':
 
     app.run(debug=True)
+
