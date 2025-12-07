@@ -2,7 +2,7 @@ name: Deploy to Render
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
@@ -17,23 +17,45 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install Flask Werkzeug Pillow
+        cd lab3
+        pip install Flask Werkzeug Pillow numpy
 
     - name: Run basic tests
       run: |
+        cd lab3
         python -c "
-        print('Testing imports...')
         from app import app, generate_captcha
-        print('✓ Flask app imports work')
+        import os
+        print('✅ Все импорты работают')
         
+        # Test CAPTCHA generation
         captcha = generate_captcha()
-        print(f'✓ CAPTCHA generated: {captcha}')
+        assert len(captcha) == 6
+        print('✅ CAPTCHA test passed')
         
+        # Test Flask app
         with app.test_client() as client:
             response = client.get('/')
-            print(f'✓ Homepage status: {response.status_code}')
-        print('✓ All tests passed!')
+            assert response.status_code == 200
+            print('✅ Flask app test passed')
+        "
+
+    - name: Test image processing
+      run: |
+        cd lab3
+        python -c "
+        from PIL import Image
+        import os
+        
+        # Create test image
+        img = Image.new('RGB', (100, 100), color='red')
+        test_path = 'test_image.png'
+        img.save(test_path)
+        print('✅ Image processing test passed')
+        
+        # Cleanup
+        if os.path.exists(test_path):
+            os.remove(test_path)
         "
 
   deploy:
@@ -42,4 +64,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Deploy to Render
-      run: echo "Deploy would happen here"
+      run: |
+        echo '🚀 Деплой на Render...'
+        # echo 'Add webhook URL to secrets for actual deploy'
