@@ -17,9 +17,9 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'bmp'}
 
 # ===== GOOGLE RECAPTCHA =====
-# ПОЛУЧИ БЕСПЛАТНЫЕ КЛЮЧИ НА: https://www.google.com/recaptcha/admin
-RECAPTCHA_SITE_KEY = "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"  # Тестовый ключ для разработки
-RECAPTCHA_SECRET_KEY = "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe"  # Тестовый секретный ключ
+
+RECAPTCHA_SITE_KEY = "6Lcz5iUsAAAAAGsKJ0-FI_Pfz2gbulSRcGXOfUWB"  # ключ для разработки
+RECAPTCHA_SECRET_KEY = "6Lcz5iUsAAAAALPlnt-rh-A7jH1ByaRu1AHMP_vJ"  # секретный ключ
 
 # ===== СОЗДАЕМ ПАПКИ =====
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -268,3 +268,4 @@ if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
+
