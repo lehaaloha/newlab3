@@ -1,32 +1,132 @@
-{% extends "base.html" %}
-
-{% block content %}
-<form action="{{ url_for('upload_image') }}" method="post" enctype="multipart/form-data">
-    <fieldset>
-        <legend>Загрузка и обработка изображения</legend>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Обработчик изображений</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container { 
+            background: white; 
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 { 
+            color: #333; 
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        .form-group { margin-bottom: 25px; }
+        label { 
+            display: block; 
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        input[type="file"]:hover {
+            border-color: #667eea;
+        }
+        .g-recaptcha {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #1565c0;
+        }
+        .flash-message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+    </style>
+    <!-- Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Обработчик изображений</h1>
         
-        <div class="form-group">
-            <label for="file">Выберите файл изображения:</label>
-            <input type="file" id="file" name="file" accept="image/*" required>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form action="/upload" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">📁 Выберите изображение:</label>
+                <input type="file" name="file" id="file" accept=".png,.jpg,.jpeg,.gif,.bmp" required>
+            </div>
+            
+            {% if site_key %}
+            <div class="g-recaptcha" data-sitekey="{{ site_key }}"></div>
+            {% endif %}
+            
+            <button type="submit" class="btn">🚀 Обработать изображение</button>
+        </form>
+        
+        <div class="info">
+            <strong>ℹ️ Информация:</strong>
+            <ul style="margin-top: 10px; padding-left: 20px;">
+                <li>Максимальный размер файла: {{ max_size_mb }}MB</li>
+                <li>Поддерживаемые форматы: PNG, JPG, JPEG, GIF, BMP</li>
+                <li>Изображение будет разделено на 4 части и сдвинуто</li>
+                <li>Будет выполнена псевдоклассификация изображения</li>
+            </ul>
         </div>
-        
-        <div class="form-group">
-            <label for="captcha_input">Введите код: <strong>{{ captcha_text }}</strong></label>
-            <input type="text" id="captcha_input" name="captcha_input" required>
-            <input type="hidden" name="captcha_text" value="{{ captcha_text }}">
-        </div>
-        
-        <button type="submit">Обработать изображение</button>
-    </fieldset>
-</form>
-
-<div class="info">
-    <h3>Что делает приложение:</h3>
-    <ul>
-        <li>Разбивает изображение на 4 части</li>
-        <li>Сдвигает части по часовой стрелке</li>
-        <li>Строит график распределения цветов</li>
-        <li>Классифицирует изображение с помощью нейросети</li>
-    </ul>
-</div>
-{% endblock %}
+    </div>
+</body>
+</html>
