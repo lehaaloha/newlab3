@@ -159,9 +159,6 @@ def upload_image():
             flash(f'Ошибка обработки изображения: {str(e)}', 'error')
             return render_template('index.html', captcha_text=generate_captcha())
 
-if __name__ == '__main__':
-    print("🚀 Запуск Flask приложения с MobileNetV2...")
-    app.run(debug=True)
 
 if __name__ == '__main__':
     import os
@@ -172,4 +169,5 @@ if __name__ == '__main__':
     
    
     app.run(host='0.0.0.0', port=port, debug=False)  
+
 
