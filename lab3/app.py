@@ -25,31 +25,40 @@ RECAPTCHA_SECRET_KEY = "6Lcz5iUsAAAAALPlnt-rh-A7jH1ByaRu1AHMP_vJ"  # секре�
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-def allowed_file(filename):
-    """Проверяем разрешенные расширения файлов"""
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
-
-def verify_recaptcha(recaptcha_response):
-    """Проверяем Google reCAPTCHA"""
-    if not RECAPTCHA_SECRET_KEY or recaptcha_response is None:
-        return True  # Пропускаем если нет ключа или ответа
-        
-    data = {
-        'secret': RECAPTCHA_SECRET_KEY,
-        'response': recaptcha_response
-    }
+# ===== СОЗДАЕМ ПАПКИ БЕЗОПАСНЫМ СПОСОБОМ =====
+def create_upload_folder():
+    """Безопасное создание папки для загрузок"""
+    upload_folder = app.config['UPLOAD_FOLDER']
     
-    try:
-        result = requests.post(
-            'https://www.google.com/recaptcha/api/siteverify',
-            data=data,
-            timeout=5
-        ).json()
-        return result.get('success', False)
-    except Exception as e:
-        print(f"Ошибка проверки reCAPTCHA: {e}")
-        return False
+    # Разбиваем путь на части и создаем по частям
+    parts = upload_folder.split('/')
+    current_path = ''
+    
+    for part in parts:
+        if part:  # Пропускаем пустые части
+            current_path = os.path.join(current_path, part) if current_path else part
+            if not os.path.exists(current_path):
+                try:
+                    os.makedirs(current_path, exist_ok=True)
+                    print(f"✅ Создана папка: {current_path}")
+                except Exception as e:
+                    print(f"⚠️ Не удалось создать {current_path}: {e}")
+            else:
+                print(f"ℹ️ Папка уже существует: {current_path}")
+    
+    # Проверяем права на запись
+    if os.path.exists(upload_folder):
+        try:
+            test_file = os.path.join(upload_folder, 'test.txt')
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            print(f"✅ Папка {upload_folder} доступна для записи")
+        except Exception as e:
+            print(f"❌ Нет прав на запись в {upload_folder}: {e}")
+
+# Создаем папку при старте
+create_upload_folder()
 
 def classify_image_simple(image_path):
     """Упрощенная классификация без TensorFlow"""
@@ -268,4 +277,5 @@ if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
+
 
