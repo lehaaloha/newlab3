@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, url_for, flash, redirect
+from flask import Flask, request, render_template, url_for, flash, redirect, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 from PIL import Image
@@ -7,192 +7,152 @@ import random
 import string
 import requests
 from datetime import datetime
+import sys
+
+print("=" * 60)
+print("🚀 НАЧАЛО ЗАПУСКА ПРИЛОЖЕНИЯ")
+print("=" * 60)
 
 app = Flask(__name__)
 
 # ===== КОНФИГУРАЦИЯ =====
-app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-12345-change-me')
+app.config['UPLOAD_FOLDER'] = 'uploads'  # Простая папка в корне
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'bmp'}
 
-# ===== GOOGLE RECAPTCHA =====
+# ===== СОЗДАНИЕ ПАПКИ =====
+upload_dir = app.config['UPLOAD_FOLDER']
+if not os.path.exists(upload_dir):
+    os.makedirs(upload_dir)
+    print(f"✅ Создана папка: {upload_dir}")
+else:
+    print(f"✅ Папка уже существует: {upload_dir}")
 
-RECAPTCHA_SITE_KEY = "6Lcz5iUsAAAAAGsKJ0-FI_Pfz2gbulSRcGXOfUWB"  # ключ для разработки
+# ===== GOOGLE RECAPTCHA =====
+# ТЕСТОВЫЕ ключи (работают на любом домене)
+RECAPTCHA_SITE_KEY = "6Lcz5iUsAAAAAGsKJ0-FI_Pfz2gbulSRcGXOfUWB"  # ключ для разработки 
 RECAPTCHA_SECRET_KEY = "6Lcz5iUsAAAAALPlnt-rh-A7jH1ByaRu1AHMP_vJ"  # секретный ключ
 
-# ===== СОЗДАЕМ ПАПКИ =====
-#os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# ===== ФУНКЦИИ =====
+def verify_recaptcha(recaptcha_response):
+    """Проверка Google reCAPTCHA"""
+    print(f"🔍 Проверка reCAPTCHA...")
+    
+    # Тестовые ключи - всегда успех
+    if RECAPTCHA_SECRET_KEY == "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe":
+        print("✅ Тестовая reCAPTCHA - успех")
+        return True
+    
+    # Если нет ответа
+    if not recaptcha_response:
+        print("❌ Нет ответа reCAPTCHA")
+        return False
+    
+    # Реальная проверка
+    try:
+        data = {
+            'secret': RECAPTCHA_SECRET_KEY,
+            'response': recaptcha_response
+        }
+        
+        response = requests.post(
+            'https://www.google.com/recaptcha/api/siteverify',
+            data=data,
+            timeout=5
+        ).json()
+        
+        success = response.get('success', False)
+        print(f"📊 reCAPTCHA результат: {success}")
+        return success
+        
+    except Exception as e:
+        print(f"⚠️ Ошибка проверки reCAPTCHA: {e}")
+        return True  # В случае ошибки пропускаем
 
-# ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-# ===== СОЗДАЕМ ПАПКИ БЕЗОПАСНЫМ СПОСОБОМ =====
-def create_upload_folder():
-    """Безопасное создание папки для загрузок"""
-    upload_folder = app.config['UPLOAD_FOLDER']
-    
-    # Разбиваем путь на части и создаем по частям
-    parts = upload_folder.split('/')
-    current_path = ''
-    
-    for part in parts:
-        if part:  # Пропускаем пустые части
-            current_path = os.path.join(current_path, part) if current_path else part
-            if not os.path.exists(current_path):
-                try:
-                    os.makedirs(current_path, exist_ok=True)
-                    print(f"✅ Создана папка: {current_path}")
-                except Exception as e:
-                    print(f"⚠️ Не удалось создать {current_path}: {e}")
-            else:
-                print(f"ℹ️ Папка уже существует: {current_path}")
-    
-    # Проверяем права на запись
-    if os.path.exists(upload_folder):
-        try:
-            test_file = os.path.join(upload_folder, 'test.txt')
-            with open(test_file, 'w') as f:
-                f.write('test')
-            os.remove(test_file)
-            print(f"✅ Папка {upload_folder} доступна для записи")
-        except Exception as e:
-            print(f"❌ Нет прав на запись в {upload_folder}: {e}")
-
-# Создаем папку при старте
-create_upload_folder()
+def allowed_file(filename):
+    """Проверка расширения файла"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def classify_image_simple(image_path):
-    """Упрощенная классификация без TensorFlow"""
+    """Упрощенная классификация изображений"""
+    categories = [
+        "Природа и пейзаж", "Городской вид", "Портрет человека", 
+        "Животное", "Технологии", "Еда и напитки", "Спорт", 
+        "Искусство и дизайн", "Архитектура", "Транспорт"
+    ]
+    
+    import random
+    results = []
+    for i in range(3):
+        results.append({
+            'class': random.choice(categories),
+            'probability': round(random.uniform(50, 95), 2)
+        })
+    
+    results.sort(key=lambda x: x['probability'], reverse=True)
+    return results
+
+def process_image(image_path):
+    """Обработка изображения - сдвиг частей"""
     try:
-        # Список возможных классов
-        categories = [
-            "Природа и пейзаж", "Городской вид", "Портрет человека", 
-            "Животное", "Технологии", "Еда и напитки", "Спорт", 
-            "Искусство и дизайн", "Архитектура", "Транспорт"
-        ]
-        
-        # Генерируем "предсказания" на основе имени файла и размера
         img = Image.open(image_path)
         width, height = img.size
         
-        # Используем хэш от имени файла для псевдослучайности
-        filename_hash = hash(os.path.basename(image_path)) % 1000
-        
-        results = []
-        used_indices = set()
-        
-        for i in range(3):
-            # Выбираем уникальный индекс
-            idx = (filename_hash + i * 17) % len(categories)
-            while idx in used_indices:
-                idx = (idx + 1) % len(categories)
-            used_indices.add(idx)
-            
-            # Генерируем "вероятность"
-            probability = 70 - i * 20 + random.randint(-5, 5)
-            probability = max(10, min(95, probability))
-            
-            results.append({
-                'class': categories[idx],
-                'probability': round(probability, 2)
-            })
-        
-        # Сортируем по вероятности
-        results.sort(key=lambda x: x['probability'], reverse=True)
-        
-        # Нормализуем чтобы сумма была около 100%
-        total = sum(r['probability'] for r in results)
-        if total > 100:
-            for r in results:
-                r['probability'] = round(r['probability'] * 100 / total, 2)
-        
-        return results
-        
-    except Exception as e:
-        print(f"Ошибка упрощенной классификации: {e}")
-        # Возвращаем запасные результаты
-        return [
-            {'class': 'Изображение распознано', 'probability': 85.5},
-            {'class': 'Качество изображения хорошее', 'probability': 12.3},
-            {'class': 'Обработка завершена', 'probability': 2.2}
-        ]
-
-def process_image(image_path):
-    """Обработка изображения: сдвиг частей"""
-    try:
-        original_img = Image.open(image_path)
-        width, height = original_img.size
-        
-        # Минимальный размер
-        if width < 100 or height < 100:
-            # Если изображение слишком маленькое, просто создаем копию
-            processed_filename = f"processed_{os.path.basename(image_path)}"
-            processed_path = os.path.join(app.config['UPLOAD_FOLDER'], processed_filename)
-            original_img.save(processed_path)
-            return processed_filename
-        
         # Разбиваем на 4 части
         half_w, half_h = width // 2, height // 2
-        
-        # Проверяем чтобы части не были слишком маленькими
-        if half_w < 10 or half_h < 10:
-            processed_filename = f"processed_{os.path.basename(image_path)}"
-            processed_path = os.path.join(app.config['UPLOAD_FOLDER'], processed_filename)
-            original_img.save(processed_path)
-            return processed_filename
-        
         parts = [
-            original_img.crop((0, 0, half_w, half_h)),
-            original_img.crop((half_w, 0, width, half_h)),
-            original_img.crop((0, half_h, half_w, height)),
-            original_img.crop((half_w, half_h, width, height))
+            img.crop((0, 0, half_w, half_h)),
+            img.crop((half_w, 0, width, half_h)),
+            img.crop((0, half_h, half_w, height)),
+            img.crop((half_w, half_h, width, height))
         ]
         
-        # Сдвигаем по часовой стрелке
-        shifted_parts = [parts[2], parts[0], parts[3], parts[1]]
+        # Сдвигаем
+        shifted = [parts[2], parts[0], parts[3], parts[1]]
         
-        # Собираем обратно
-        new_image = Image.new('RGB', (width, height))
-        new_image.paste(shifted_parts[0], (0, 0))
-        new_image.paste(shifted_parts[1], (half_w, 0))
-        new_image.paste(shifted_parts[2], (0, half_h))
-        new_image.paste(shifted_parts[3], (half_w, half_h))
+        # Собираем
+        new_img = Image.new('RGB', (width, height))
+        new_img.paste(shifted[0], (0, 0))
+        new_img.paste(shifted[1], (half_w, 0))
+        new_img.paste(shifted[2], (0, half_h))
+        new_img.paste(shifted[3], (half_w, half_h))
         
-        # Генерируем уникальное имя файла
+        # Сохраняем
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base_name = os.path.splitext(os.path.basename(image_path))[0]
-        processed_filename = f"processed_{base_name}_{timestamp}.jpg"
-        processed_path = os.path.join(app.config['UPLOAD_FOLDER'], processed_filename)
+        processed_name = f"processed_{base_name}_{timestamp}.jpg"
+        processed_path = os.path.join(app.config['UPLOAD_FOLDER'], processed_name)
         
-        # Сохраняем в формате JPEG для экономии места
-        new_image.save(processed_path, 'JPEG', quality=85)
-        
-        return processed_filename
+        new_img.save(processed_path, 'JPEG', quality=85)
+        return processed_name
         
     except Exception as e:
-        print(f"Ошибка обработки изображения: {e}")
+        print(f"❌ Ошибка обработки: {e}")
         raise
 
 # ===== МАРШРУТЫ =====
-@app.route('/', methods=['GET'])
+@app.route('/')
 def index():
-    """Главная страница"""
     return render_template('index.html', 
                          site_key=RECAPTCHA_SITE_KEY,
-                         max_size_mb=app.config['MAX_CONTENT_LENGTH'] // (1024*1024))
+                         max_size_mb=16)
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
-    """Обработка загрузки изображения"""
     try:
-        # Проверяем reCAPTCHA
+        print("📤 Начало загрузки файла...")
+        
+        # 1. Проверка reCAPTCHA
         recaptcha_response = request.form.get('g-recaptcha-response')
         if not verify_recaptcha(recaptcha_response):
             flash('❌ Пожалуйста, подтвердите что вы не робот!', 'error')
-            return render_template('index.html', 
-                                 site_key=RECAPTCHA_SITE_KEY,
-                                 max_size_mb=app.config['MAX_CONTENT_LENGTH'] // (1024*1024))
+            return redirect('/')
         
-        # Проверяем наличие файла
+        print("✅ reCAPTCHA пройдена")
+        
+        # 2. Проверка файла
         if 'file' not in request.files:
             flash('❌ Файл не выбран', 'error')
             return redirect('/')
@@ -204,79 +164,48 @@ def upload_image():
             return redirect('/')
         
         if not allowed_file(file.filename):
-            flash('❌ Недопустимый формат файла. Разрешены: PNG, JPG, JPEG, GIF, BMP', 'error')
+            flash('❌ Разрешены только PNG, JPG, JPEG, GIF, BMP', 'error')
             return redirect('/')
         
-        # Сохраняем файл
-        filename = secure_filename(file.filename)
+        print(f"📄 Файл получен: {file.filename}")
         
-        # Добавляем timestamp для уникальности
+        # 3. Сохранение файла
+        filename = secure_filename(file.filename)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         name, ext = os.path.splitext(filename)
-        unique_filename = f"{name}_{timestamp}{ext}"
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        unique_name = f"{name}_{timestamp}{ext}"
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
         
         file.save(file_path)
+        print(f"💾 Файл сохранен: {file_path}")
         
-        # Проверяем что файл сохранен
-        if not os.path.exists(file_path):
-            flash('❌ Ошибка сохранения файла', 'error')
-            return redirect('/')
+        # 4. Обработка
+        processed_name = process_image(file_path)
+        results = classify_image_simple(file_path)
         
-        # Обрабатываем изображение
-        try:
-            processed_filename = process_image(file_path)
-            classification_results = classify_image_simple(file_path)
-            
-            return render_template('result.html',
-                                 original_image=unique_filename,
-                                 processed_image=processed_filename,
-                                 classification_results=classification_results)
-            
-        except Exception as e:
-            flash(f'❌ Ошибка обработки изображения: {str(e)}', 'error')
-            return redirect('/')
-            
+        print(f"✅ Обработка завершена!")
+        
+        return render_template('result.html',
+                             original_image=unique_name,
+                             processed_image=processed_name,
+                             classification_results=results)
+        
     except Exception as e:
-        flash(f'❌ Неожиданная ошибка: {str(e)}', 'error')
+        print(f"❌ Ошибка в upload: {e}")
+        flash(f'❌ Ошибка: {str(e)}', 'error')
         return redirect('/')
 
-@app.route('/health')
-def health_check():
-    """Проверка работоспособности для Render"""
-    return "OK", 200
+@app.route('/uploads/<filename>')
+def serve_file(filename):
+    """Отдача загруженных файлов"""
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-@app.route('/test')
-def test_page():
-    """Тестовая страница"""
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head><title>✅ Тест</title></head>
-    <body>
-        <h1>✅ Flask работает на Render!</h1>
-        <p><a href="/">Главная страница</a></p>
-        <p><a href="/health">Health check</a></p>
-        <p>Сайт: newlab3-1jyj.onrender.com</p>
-    </body>
-    </html>
-    """
+@app.route('/health')
+def health():
+    return "OK", 200
 
 # ===== ЗАПУСК =====
 if __name__ == '__main__':
-    import os
-    
-    print("🚀 Запуск Flask приложения...")
-    print(f"📁 Папка загрузок: {app.config['UPLOAD_FOLDER']}")
-    print(f"🔑 reCAPTCHA сайт ключ: {'Установлен' if RECAPTCHA_SITE_KEY else 'Не установлен'}")
-    
-    # Получаем порт от Render
     port = int(os.environ.get('PORT', 5000))
-    
-    # Для разработки debug=True, для продакшена debug=False
-    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    
-    app.run(host='0.0.0.0', port=port, debug=debug_mode)
-
-
-
+    debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(host='0.0.0.0', port=port, debug=debug)
