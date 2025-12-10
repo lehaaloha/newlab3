@@ -127,29 +127,7 @@
         </div>
     </div>
         
-        <h2>📊 Результаты классификации:</h2>
-        <table class="results-table">
-            <thead>
-                <tr>
-                    <th>Класс</th>
-                    <th>Вероятность</th>
-                    <th>График</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for result in classification_results %}
-                <tr>
-                    <td>{{ result.class }}</td>
-                    <td>{{ result.probability }}%</td>
-                    <td>
-                        <div class="probability-bar">
-                            <div class="probability-fill" style="width: {{ result.probability }}%"></div>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        
         
         <div class="btn-container">
             <a href="/" class="btn">🔄 Обработать другое изображение</a>
@@ -157,4 +135,5 @@
     </div>
 </body>
 </html>
+
 
