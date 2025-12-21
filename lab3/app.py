@@ -8,6 +8,9 @@ import string
 import requests
 from datetime import datetime
 import sys
+import tensorflow as tf
+from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.applications.resnet50 import preprocess_input, decode_predictions
 
 print("=" * 60)
 print("🚀 НАЧАЛО ЗАПУСКА ПРИЛОЖЕНИЯ")
@@ -75,61 +78,47 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def classify_image_simple(image_path):
-    """Упрощенная классификация изображений"""
-    categories = [
-        "Природа и пейзаж", "Городской вид", "Портрет человека", 
-        "Животное", "Технологии", "Еда и напитки", "Спорт", 
-        "Искусство и дизайн", "Архитектура", "Транспорт"
-    ]
-
-def classify_image_real(image_path):
+def classify_image(image_path):
     """Реальная классификация через ResNet50"""
     try:
-        # Загрузка модели
+        print(f"🧠 Начинаю классификацию изображения...")
+        
+        # 1. Загрузка модели ResNet50 (предобученной на ImageNet)
+        print(f"📥 Загружаю модель ResNet50...")
         model = ResNet50(weights='imagenet')
         
-        # Загрузка изображения
+        # 2. Загрузка и подготовка изображения
+        print(f"🖼️ Обрабатываю изображение...")
         img = Image.open(image_path).convert('RGB')
-        img = img.resize((224, 224))
+        img = img.resize((224, 224))  # ResNet50 требует 224x224 пикселей
         
-        # Подготовка для нейросети
+        # 3. Подготовка для нейросети
         img_array = np.array(img)
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array = preprocess_input(img_array)
+        img_array = np.expand_dims(img_array, axis=0)  # Добавляем batch dimension
+        img_array = preprocess_input(img_array)  # Нормализация для ResNet50
         
-        # Предсказание
+        # 4. Предсказание нейросетью
+        print(f"🤖 Нейросеть делает предсказание...")
         predictions = model.predict(img_array)
         
-        # Декодирование
+        # 5. Декодирование результатов (топ-5)
         decoded = decode_predictions(predictions, top=5)[0]
         
-        # Форматирование
+        # 6. Форматирование результатов
         results = []
-        for _, class_name, prob in decoded:
+        for _, class_name, probability in decoded:
             results.append({
-                'class': class_name.replace('_', ' '),
-                'probability': prob * 100
+                'class': class_name.replace('_', ' ').title(),
+                'probability': round(probability * 100, 2)
             })
         
+        print(f"✅ Классификация завершена. Найдено {len(results)} категорий.")
         return results
         
     except Exception as e:
-        print(f"Ошибка ML: {e}")
-        # Fallback на простую классификацию
-        return classify_image_simple(image_path)
-    
-    
-    import random
-    results = []
-    for i in range(3):
-        results.append({
-            'class': random.choice(categories),
-            'probability': round(random.uniform(50, 95), 2)
-        })
-    
-    results.sort(key=lambda x: x['probability'], reverse=True)
-    return results
+        print(f"❌ Ошибка в нейросети: {e}")
+        # Возвращаем пустой список в случае ошибки
+        return [{'class': 'Ошибка классификации', 'probability': 0.0}]
 
 def process_image(image_path):
     """Обработка изображения - сдвиг частей"""
@@ -246,4 +235,5 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(host='0.0.0.0', port=port, debug=debug)
+
 
