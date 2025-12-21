@@ -207,7 +207,7 @@ def upload_image():
         
         # 4. Обработка
         processed_name = process_image(file_path)
-        results = classify_image_real(file_path)
+        results = classify_image(file_path)
         
         print(f"✅ Обработка завершена!")
         
@@ -235,5 +235,6 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(host='0.0.0.0', port=port, debug=debug)
+
 
 
