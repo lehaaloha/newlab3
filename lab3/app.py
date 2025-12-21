@@ -82,6 +82,43 @@ def classify_image_simple(image_path):
         "Животное", "Технологии", "Еда и напитки", "Спорт", 
         "Искусство и дизайн", "Архитектура", "Транспорт"
     ]
+
+def classify_image_real(image_path):
+    """Реальная классификация через ResNet50"""
+    try:
+        # Загрузка модели
+        model = ResNet50(weights='imagenet')
+        
+        # Загрузка изображения
+        img = Image.open(image_path).convert('RGB')
+        img = img.resize((224, 224))
+        
+        # Подготовка для нейросети
+        img_array = np.array(img)
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array = preprocess_input(img_array)
+        
+        # Предсказание
+        predictions = model.predict(img_array)
+        
+        # Декодирование
+        decoded = decode_predictions(predictions, top=5)[0]
+        
+        # Форматирование
+        results = []
+        for _, class_name, prob in decoded:
+            results.append({
+                'class': class_name.replace('_', ' '),
+                'probability': prob * 100
+            })
+        
+        return results
+        
+    except Exception as e:
+        print(f"Ошибка ML: {e}")
+        # Fallback на простую классификацию
+        return classify_image_simple(image_path)
+    
     
     import random
     results = []
@@ -181,7 +218,7 @@ def upload_image():
         
         # 4. Обработка
         processed_name = process_image(file_path)
-        results = classify_image_simple(file_path)
+        results = classify_image_real(file_path)
         
         print(f"✅ Обработка завершена!")
         
@@ -209,3 +246,4 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(host='0.0.0.0', port=port, debug=debug)
+
