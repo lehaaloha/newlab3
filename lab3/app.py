@@ -36,8 +36,8 @@ if not os.path.exists(upload_dir):
     print(f"✅ Создана папка: {upload_dir}")
 
 # ===== GOOGLE RECAPTCHA =====
-RECAPTCHA_SITE_KEY = "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe"  # Тестовый ключ
-RECAPTCHA_SECRET_KEY = "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe"  # Тестовый ключ
+RECAPTCHA_SITE_KEY = "6LfFbzMsAAAAAAvdCEdJu05KleZvtDLCsSOi9Lna"  # Тестовый ключ
+RECAPTCHA_SECRET_KEY = "6LfFbzMsAAAAAB8bGEfk_VrMc8BzdOPx-rAtftpG"  # Тестовый ключ
 
 # ===== ФУНКЦИИ =====
 def verify_recaptcha(recaptcha_response):
@@ -313,3 +313,4 @@ if __name__ == '__main__':
     os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Отключаем oneDNN
     
     app.run(host='0.0.0.0', port=port, debug=debug, threaded=True)
+
