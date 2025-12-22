@@ -122,57 +122,84 @@ def classify_image(image_path):
 
 
 
-def create_color_histogram(image_path):
-    """Создает гистограмму распределения цветов RGB"""
+def create_light_histogram(image_path):
+    """Создает легкую гистограмму с минимальным использованием памяти"""
     try:
-        # 1. Открываем изображение
+        print("📊 Создаю легкую гистограмму...")
+        
+        # 1. Открываем изображение СРАЗУ в уменьшенном виде
         img = Image.open(image_path)
         
-        # 2. Преобразуем в numpy массив
+        # Автоматическое уменьшение больших изображений
+        max_pixels = 50000  # Максимум 50к пикселей для анализа
+        if img.width * img.height > max_pixels:
+            # Вычисляем коэффициент уменьшения
+            scale = (max_pixels / (img.width * img.height)) ** 0.5
+            new_size = (int(img.width * scale), int(img.height * scale))
+            img = img.resize(new_size, Image.Resampling.NEAREST)  # Быстрый метод
+            print(f"   Уменьшено до: {new_size}")
+        
+        # 2. Конвертируем в numpy (уже маленький массив)
         img_array = np.array(img)
         
-        # 3. Разделяем на RGB каналы
-        r_channel = img_array[:, :, 0].flatten()  # Красный (0-255)
-        g_channel = img_array[:, :, 1].flatten()  # Зеленый (0-255)  
-        b_channel = img_array[:, :, 2].flatten()  # Синий (0-255)
+        # 3. Берем КАЖДЫЙ 10-й пиксель для экономии
+        step = 10
+        r = img_array[::step, ::step, 0].flatten()
+        g = img_array[::step, ::step, 1].flatten()
+        b = img_array[::step, ::step, 2].flatten()
         
-        # 4. Создаем график
-        plt.figure(figsize=(10, 6))
+        print(f"   Анализирую {len(r)} пикселей (вместо {img_array.shape[0]*img_array.shape[1]})")
         
-        # Гистограмма для красного канала
-        plt.hist(r_channel, bins=256, color='red', alpha=0.5, 
-                label='Red', range=[0, 256])
+        # 4. Освобождаем память СРАЗУ
+        del img_array
         
-        # Гистограмма для зеленого канала
-        plt.hist(g_channel, bins=256, color='green', alpha=0.5,
-                label='Green', range=[0, 256])
+        # 5. Создаем МАЛЕНЬКИЙ график
+        plt.figure(figsize=(8, 4), dpi=60)  # Маленький размер, низкое качество
         
-        # Гистограмма для синего канала
-        plt.hist(b_channel, bins=256, color='blue', alpha=0.5,
-                label='Blue', range=[0, 256])
+        # Всего 16 столбцов (вместо 256)
+        bins = 16
         
-        # Настройки графика
-        plt.title('Распределение цветов (RGB гистограмма)', fontsize=14)
-        plt.xlabel('Значение цвета (0-255)', fontsize=12)
-        plt.ylabel('Количество пикселей', fontsize=12)
-        plt.legend()
-        plt.grid(alpha=0.3)
+        # Простые гистограммы без лишних параметров
+        plt.hist(r, bins=bins, alpha=0.5, color='red', label='Red', 
+                range=(0, 255), density=True, edgecolor='none')
+        plt.hist(g, bins=bins, alpha=0.5, color='green', label='Green',
+                range=(0, 255), density=True, edgecolor='none')
+        plt.hist(b, bins=bins, alpha=0.5, color='blue', label='Blue',
+                range=(0, 255), density=True, edgecolor='none')
         
-        # 5. Сохраняем график
+        # 6. МИНИМАЛЬНЫЕ настройки (экономия памяти)
+        plt.title('Color Distribution', fontsize=11)
+        plt.xlabel('Color Value')
+        plt.ylabel('Density')
+        plt.legend(fontsize=9)
+        plt.grid(True, alpha=0.2)
+        
+        # 7. Сохраняем с НИЗКИМ качеством
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base_name = os.path.splitext(os.path.basename(image_path))[0]
-        histogram_name = f"histogram_{base_name}_{timestamp}.png"
+        histogram_name = f"hist_{base_name}_{timestamp}.png"
         histogram_path = os.path.join(app.config['UPLOAD_FOLDER'], histogram_name)
         
-        plt.savefig(histogram_path, dpi=100, bbox_inches='tight')
-        plt.close()  # Закрываем график чтобы не накапливались в памяти
+        plt.savefig(histogram_path, dpi=60, bbox_inches='tight',
+                   facecolor='white', optimize=True)
         
-        print(f"📊 Гистограмма создана: {histogram_name}")
+        # 8. ВАЖНО: полностью очищаем matplotlib
+        plt.close('all')  # Закрываем все
+        plt.clf()
+        plt.cla()
+        plt.close()
+        
+        # Принудительный сбор мусора
+        import gc
+        gc.collect()
+        
+        print(f"✅ Легкая гистограмма создана: {histogram_name}")
         return histogram_name
         
     except Exception as e:
-        print(f"❌ Ошибка создания гистограммы: {e}")
-        return None
+        print(f"❌ Ошибка легкой гистограммы: {e}")
+        # Возвращаем простую текстовую статистику
+        return create_text_color_report(image_path)
 
 
 def process_image(image_path):
@@ -291,6 +318,7 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(host='0.0.0.0', port=port, debug=debug)
+
 
 
 
