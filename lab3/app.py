@@ -120,6 +120,61 @@ def classify_image(image_path):
         # Возвращаем пустой список в случае ошибки
         return [{'class': 'Ошибка классификации', 'probability': 0.0}]
 
+
+
+def create_color_histogram(image_path):
+    """Создает гистограмму распределения цветов RGB"""
+    try:
+        # 1. Открываем изображение
+        img = Image.open(image_path)
+        
+        # 2. Преобразуем в numpy массив
+        img_array = np.array(img)
+        
+        # 3. Разделяем на RGB каналы
+        r_channel = img_array[:, :, 0].flatten()  # Красный (0-255)
+        g_channel = img_array[:, :, 1].flatten()  # Зеленый (0-255)  
+        b_channel = img_array[:, :, 2].flatten()  # Синий (0-255)
+        
+        # 4. Создаем график
+        plt.figure(figsize=(10, 6))
+        
+        # Гистограмма для красного канала
+        plt.hist(r_channel, bins=256, color='red', alpha=0.5, 
+                label='Red', range=[0, 256])
+        
+        # Гистограмма для зеленого канала
+        plt.hist(g_channel, bins=256, color='green', alpha=0.5,
+                label='Green', range=[0, 256])
+        
+        # Гистограмма для синего канала
+        plt.hist(b_channel, bins=256, color='blue', alpha=0.5,
+                label='Blue', range=[0, 256])
+        
+        # Настройки графика
+        plt.title('Распределение цветов (RGB гистограмма)', fontsize=14)
+        plt.xlabel('Значение цвета (0-255)', fontsize=12)
+        plt.ylabel('Количество пикселей', fontsize=12)
+        plt.legend()
+        plt.grid(alpha=0.3)
+        
+        # 5. Сохраняем график
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_name = os.path.splitext(os.path.basename(image_path))[0]
+        histogram_name = f"histogram_{base_name}_{timestamp}.png"
+        histogram_path = os.path.join(app.config['UPLOAD_FOLDER'], histogram_name)
+        
+        plt.savefig(histogram_path, dpi=100, bbox_inches='tight')
+        plt.close()  # Закрываем график чтобы не накапливались в памяти
+        
+        print(f"📊 Гистограмма создана: {histogram_name}")
+        return histogram_name
+        
+    except Exception as e:
+        print(f"❌ Ошибка создания гистограммы: {e}")
+        return None
+
+
 def process_image(image_path):
     """Обработка изображения - сдвиг частей"""
     try:
@@ -207,6 +262,7 @@ def upload_image():
         
         # 4. Обработка
         processed_name = process_image(file_path)
+        histogram_name = create_color_histogram(file_path)
         results = classify_image(file_path)
         
         print(f"✅ Обработка завершена!")
@@ -235,6 +291,7 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(host='0.0.0.0', port=port, debug=debug)
+
 
 
 
