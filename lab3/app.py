@@ -8,6 +8,13 @@ import string
 import requests
 from datetime import datetime
 import sys
+
+# Импорты для графиков
+import matplotlib
+matplotlib.use('Agg')  # Важно! Для работы без GUI
+import matplotlib.pyplot as plt
+
+# Импорты для нейросети
 import tensorflow as tf
 from tensorflow.keras.applications import ResNet50
 from tensorflow.keras.applications.resnet50 import preprocess_input, decode_predictions
@@ -120,8 +127,6 @@ def classify_image(image_path):
         # Возвращаем пустой список в случае ошибки
         return [{'class': 'Ошибка классификации', 'probability': 0.0}]
 
-
-
 def create_light_histogram(image_path):
     """Создает легкую гистограмму с минимальным использованием памяти"""
     try:
@@ -168,9 +173,9 @@ def create_light_histogram(image_path):
                 range=(0, 255), density=True, edgecolor='none')
         
         # 6. МИНИМАЛЬНЫЕ настройки (экономия памяти)
-        plt.title('Color Distribution', fontsize=11)
-        plt.xlabel('Color Value')
-        plt.ylabel('Density')
+        plt.title('Распределение цветов', fontsize=11)
+        plt.xlabel('Значение цвета (0-255)')
+        plt.ylabel('Плотность')
         plt.legend(fontsize=9)
         plt.grid(True, alpha=0.2)
         
@@ -201,39 +206,61 @@ def create_light_histogram(image_path):
         # Возвращаем простую текстовую статистику
         return create_text_color_report(image_path)
 
+def create_text_color_report(image_path):
+    """Создает текстовый отчет о цветах если не удалось создать график"""
+    try:
+        img = Image.open(image_path)
+        img.thumbnail((100, 100))
+        
+        pixels = np.array(img).reshape(-1, 3)
+        avg_r = int(np.mean(pixels[:, 0]))
+        avg_g = int(np.mean(pixels[:, 1]))
+        avg_b = int(np.mean(pixels[:, 2]))
+        
+        return {
+            'message': 'График не создан, вот статистика цветов:',
+            'avg_rgb': f'RGB({avg_r}, {avg_g}, {avg_b})',
+            'hex_color': f'#{avg_r:02x}{avg_g:02x}{avg_b:02x}',
+            'brightness': int(0.299*avg_r + 0.587*avg_g + 0.114*avg_b)
+        }
+    except Exception as e:
+        print(f"❌ Ошибка текстового отчета: {e}")
+        return {'message': 'Не удалось проанализировать цвета'}
 
 def process_image(image_path):
     """Обработка изображения - сдвиг частей"""
     try:
+        print(f"🎨 Начинаю обработку изображения...")
         img = Image.open(image_path)
         width, height = img.size
         
         # Разбиваем на 4 части
         half_w, half_h = width // 2, height // 2
         parts = [
-            img.crop((0, 0, half_w, half_h)),
-            img.crop((half_w, 0, width, half_h)),
-            img.crop((0, half_h, half_w, height)),
-            img.crop((half_w, half_h, width, height))
+            img.crop((0, 0, half_w, half_h)),          # Верхний левый
+            img.crop((half_w, 0, width, half_h)),      # Верхний правый
+            img.crop((0, half_h, half_w, height)),     # Нижний левый
+            img.crop((half_w, half_h, width, height))  # Нижний правый
         ]
         
-        # Сдвигаем
+        # Сдвигаем по часовой стрелке
         shifted = [parts[2], parts[0], parts[3], parts[1]]
         
-        # Собираем
+        # Собираем обратно
         new_img = Image.new('RGB', (width, height))
         new_img.paste(shifted[0], (0, 0))
         new_img.paste(shifted[1], (half_w, 0))
         new_img.paste(shifted[2], (0, half_h))
         new_img.paste(shifted[3], (half_w, half_h))
         
-        # Сохраняем
+        # Сохраняем с временной меткой
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base_name = os.path.splitext(os.path.basename(image_path))[0]
         processed_name = f"processed_{base_name}_{timestamp}.jpg"
         processed_path = os.path.join(app.config['UPLOAD_FOLDER'], processed_name)
         
         new_img.save(processed_path, 'JPEG', quality=85)
+        print(f"✅ Обработка завершена. Сохранено как: {processed_name}")
         return processed_name
         
     except Exception as e:
@@ -250,7 +277,9 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
-        print("📤 Начало загрузки файла...")
+        print("=" * 40)
+        print("📤 НАЧАЛО ЗАГРУЗКИ ФАЙЛА")
+        print("=" * 40)
         
         # 1. Проверка reCAPTCHA
         recaptcha_response = request.form.get('g-recaptcha-response')
@@ -288,16 +317,24 @@ def upload_image():
         print(f"💾 Файл сохранен: {file_path}")
         
         # 4. Обработка
-        processed_name = process_image(file_path)
-        histogram_name = create_light_histogram(image_path)
-        results = classify_image(file_path)
+        processed_name = process_image(file_path)          # Сдвиг частей
+        histogram_name = create_light_histogram(file_path) # 📊 График цветов
+        results = classify_image(file_path)                # 🤖 Нейросеть
         
         print(f"✅ Обработка завершена!")
+        
+        # 5. Определяем, что передаем в шаблон
+        color_report = None
+        if isinstance(histogram_name, dict):  # Если вернулся текстовый отчет
+            color_report = histogram_name
+            histogram_name = None
         
         return render_template('result.html',
                              original_image=unique_name,
                              processed_image=processed_name,
-                             classification_results=results)
+                             histogram_image=histogram_name,    # 📊 График или None
+                             color_report=color_report,         # 📝 Текстовый отчет или None
+                             classification_results=results)    # 🤖 Результаты нейросети
         
     except Exception as e:
         print(f"❌ Ошибка в upload: {e}")
@@ -318,9 +355,3 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(host='0.0.0.0', port=port, debug=debug)
-
-
-
-
-
-
