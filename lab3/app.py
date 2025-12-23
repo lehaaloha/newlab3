@@ -344,7 +344,7 @@ def upload_image():
         
         # Проверяем нужен ли водяной знак
         add_watermark_flag = request.form.get('add_watermark') == 'yes'
-        watermark_text = request.form.get('watermark_text', '© Image Processor')
+        watermark_text = request.form.get('watermark_text', 'WATERMARK')
         
         watermark_added = False
         if add_watermark_flag:
@@ -395,4 +395,5 @@ if __name__ == '__main__':
     print(f"Используется легкая нейросеть ONNX")
     
     app.run(host='0.0.0.0', port=port, debug=debug, threaded=True)
+
 
