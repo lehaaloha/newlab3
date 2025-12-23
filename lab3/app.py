@@ -125,13 +125,15 @@ def classify_image_with_cnn(image_path):
             return []
 
 def analyze_colors(image_path):
-    def simple_color_chart(image_path):
-    """Очень простой анализ цветов для графика"""
+    """Анализ распределения цветов в изображении"""
     try:
         img = Image.open(image_path)
-        img.thumbnail((100, 100))  # Уменьшаем
+        img.thumbnail((300, 300))  # Уменьшаем для скорости
         
-        img_array = np.array(img.convert('RGB'))
+        img_array = np.array(img)
+        if img_array.shape[-1] == 4:
+            img_array = img_array[:, :, :3]
+        
         pixels = img_array.reshape(-1, 3)
         
         # Средние значения
@@ -148,15 +150,36 @@ def analyze_colors(image_path):
         else:
             red_pct = green_pct = blue_pct = 33
         
-        return {
+        # Преобладающий цвет
+        color_diffs = {
+            'Красный': avg_r - (avg_g + avg_b) / 2,
+            'Зеленый': avg_g - (avg_r + avg_b) / 2,
+            'Синий': avg_b - (avg_r + avg_g) / 2
+        }
+        dominant = max(color_diffs, key=color_diffs.get)
+        
+        # Яркость
+        brightness = int(0.299 * avg_r + 0.587 * avg_g + 0.114 * avg_b)
+        
+        color_info = {
+            'avg_rgb': f'RGB({avg_r}, {avg_g}, {avg_b})',
             'hex_color': f'#{avg_r:02x}{avg_g:02x}{avg_b:02x}',
+            'dominant_color': dominant,
             'red': red_pct,
             'green': green_pct,
-            'blue': blue_pct
+            'blue': blue_pct,
+            'brightness': brightness,
+            'brightness_percent': round(brightness / 255 * 100, 1),
+            'width': img.width,
+            'height': img.height,
+            'total_pixels': len(pixels)
         }
         
-    except:
-        return {'hex_color': '#808080', 'red': 33, 'green': 33, 'blue': 33}
+        return color_info
+        
+    except Exception as e:
+        print(f"Ошибка анализа цветов: {e}")
+        return None
 
 def process_image(image_path):
     """Разбивает изображение на 4 части и сдвигает их"""
@@ -287,6 +310,7 @@ if __name__ == '__main__':
     os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Отключаем oneDNN
     
     app.run(host='0.0.0.0', port=port, debug=debug, threaded=True)
+
 
 
 
