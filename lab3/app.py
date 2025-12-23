@@ -49,8 +49,8 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def add_watermark(image_path, watermark_text="© Image Processor"):
-    """Добавляет водяной знак на изображение"""
+def add_watermark(image_path, watermark_text="WATERMARK"):
+    
     try:
         print(f"Добавление водяного знака: {watermark_text}")
         
@@ -62,8 +62,8 @@ def add_watermark(image_path, watermark_text="© Image Processor"):
         watermark_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(watermark_layer)
         
-        # Пытаемся использовать красивый шрифт
-        font_size = min(width, height) // 25  # Размер шрифта зависит от размера изображения
+        
+        font_size = min(width, height) // 25  
         if font_size < 12:
             font_size = 12
         elif font_size > 48:
@@ -395,3 +395,4 @@ if __name__ == '__main__':
     print(f"Используется легкая нейросеть ONNX")
     
     app.run(host='0.0.0.0', port=port, debug=debug, threaded=True)
+
