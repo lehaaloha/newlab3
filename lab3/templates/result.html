@@ -135,62 +135,46 @@
         </div>
         
         <!-- Анализ цветов -->
-        {% if color_analysis %}
-        <h2>Распределение цветов</h2>
-        <div class="color-chart">
-            
-            <div style="text-align: center; margin-bottom: 20px;">
-                <div class="color-preview" style="background-color: {{ color_analysis.hex_color }};"></div>
-                <p><strong>Средний цвет: </strong>{{ color_analysis.hex_color }}</p>
-            </div>
-            
-            <div class="stats">
-                <div class="stat-box">
-                    <strong>Преобладающий:</strong><br>
-                    {{ color_analysis.dominant_color }}
-                </div>
-                <div class="stat-box">
-                    <strong>Яркость:</strong><br>
-                    {{ color_analysis.brightness }}/255
-                </div>
-                <div class="stat-box">
-                    <strong>Размер:</strong><br>
-                    {{ color_analysis.width }} × {{ color_analysis.height }}
-                </div>
-            </div>
-            
-            <h3>Распределение по каналам:</h3>
-            
-            <!-- Красный -->
-            <div class="color-bar" style="background: linear-gradient(90deg, rgba(255,0,0,0.3), rgba(255,0,0,0.8)); width: {{ color_analysis.red_percent|default(33) }}%;">
-                <span class="color-label">Красный: {{ color_analysis.red_percent|default(33) }}%</span>
-            </div>
-            
-            <!-- Зеленый -->
-            <div class="color-bar" style="background: linear-gradient(90deg, rgba(0,255,0,0.3), rgba(0,255,0,0.8)); width: {{ color_analysis.green_percent|default(33) }}%;">
-                <span class="color-label">Зеленый: {{ color_analysis.green_percent|default(33) }}%</span>
-            </div>
-            
-            <!-- Синий -->
-            <div class="color-bar" style="background: linear-gradient(90deg, rgba(0,0,255,0.3), rgba(0,0,255,0.8)); width: {{ color_analysis.blue_percent|default(33) }}%;">
-                <span class="color-label">Синий: {{ color_analysis.blue_percent|default(33) }}%</span>
-            </div>
-            
-            {% if color_analysis.top_colors %}
-            <div style="margin-top: 20px;">
-                <h3>Основные цвета:</h3>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    {% for color in color_analysis.top_colors %}
-                    <div style="text-align: center;">
-                        <div style="width: 50px; height: 50px; background-color: {{ color.rgb }}; border: 1px solid #ccc; border-radius: 5px;"></div>
-                        <small>{{ color.percent }}%</small>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
+       {% if color_analysis %}
+<h2>Распределение цветов</h2>
+
+<div style="margin: 20px 0; padding: 20px; background: white; border: 1px solid #ddd; border-radius: 5px;">
+
+    <!-- Средний цвет -->
+    <div style="text-align: center; margin-bottom: 20px;">
+        <div style="width: 80px; height: 80px; background: {{ color_analysis.hex_color }}; 
+                    margin: 0 auto; border: 2px solid #333;"></div>
+        <p style="margin-top: 10px;"><strong>Средний цвет:</strong> {{ color_analysis.hex_color }}</p>
+    </div>
+
+    <!-- Простой график -->
+    <div style="width: 100%; height: 30px; background: #f0f0f0; border-radius: 5px; overflow: hidden; margin: 20px 0;">
+        <div style="height: 100%; float: left; width: {{ color_analysis.red }}%; background: #ff4444;"></div>
+        <div style="height: 100%; float: left; width: {{ color_analysis.green }}%; background: #44ff44;"></div>
+        <div style="height: 100%; float: left; width: {{ color_analysis.blue }}%; background: #4444ff;"></div>
+    </div>
+
+    <!-- Легенда -->
+    <div style="display: flex; justify-content: space-around; margin-top: 10px;">
+        <div style="text-align: center;">
+            <div style="width: 20px; height: 20px; background: #ff4444; margin: 0 auto;"></div>
+            <div>Красный</div>
+            <div><strong>{{ color_analysis.red }}%</strong></div>
         </div>
-        {% endif %}
+        <div style="text-align: center;">
+            <div style="width: 20px; height: 20px; background: #44ff44; margin: 0 auto;"></div>
+            <div>Зеленый</div>
+            <div><strong>{{ color_analysis.green }}%</strong></div>
+        </div>
+        <div style="text-align: center;">
+            <div style="width: 20px; height: 20px; background: #4444ff; margin: 0 auto;"></div>
+            <div>Синий</div>
+            <div><strong>{{ color_analysis.blue }}%</strong></div>
+        </div>
+    </div>
+
+</div>
+{% endif %}
         
         <!-- Результаты нейросети -->
         {% if classification_results %}
@@ -215,3 +199,4 @@
     </div>
 </body>
 </html>
+
