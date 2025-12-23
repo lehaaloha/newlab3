@@ -51,78 +51,48 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def classify_image_with_cnn(image_path):
-    """Классификация изображения с помощью нейросети"""
+"""Классификация с помощью очень легкой нейросети"""
     try:
-        print("🧠 Загружаю модель нейросети...")
+        print("Загружаю легкую модель нейросети...")
         
-        # Используем EfficientNetB0 - легкая и быстрая модель
-        from tensorflow.keras.applications import EfficientNetB0
-        from tensorflow.keras.applications.efficientnet import preprocess_input, decode_predictions
+        # Используем самую легкую модель - MobileNetV2 с alpha=0.35
+        from tensorflow.keras.applications import MobileNetV2
+        from tensorflow.keras.applications.mobilenet_v2 import preprocess_input, decode_predictions
         
-        # Загружаем модель (предзагруженные веса)
-        model = EfficientNetB0(weights='imagenet')
-        print("✅ Модель загружена")
+        # Самая легкая версия MobileNetV2
+        model = MobileNetV2(
+            weights='imagenet',
+            alpha=0.35,  # Минимальный размер (самая легкая)
+            input_shape=(96, 96, 3)  # Маленький размер изображения
+        )
         
-        # Загружаем и обрабатываем изображение
+        print("Легкая модель загружена")
+        
+        # Быстрая обработка маленького изображения
         img = Image.open(image_path).convert('RGB')
-        img = img.resize((224, 224))  # Размер для EfficientNet
+        img = img.resize((96, 96))  # Очень маленький размер
         
-        # Преобразуем в массив
-        img_array = np.array(img)
+        # Быстрая нормализация
+        img_array = np.array(img) / 127.5 - 1.0
         img_array = np.expand_dims(img_array, axis=0)
-        img_array = preprocess_input(img_array)
         
-        # Предсказание
-        print("🤖 Выполняю предсказание...")
-        predictions = model.predict(img_array, verbose=0)
+        # Быстрое предсказание
+        predictions = model.predict(img_array, verbose=0, batch_size=1)
         
         # Декодируем результаты
-        decoded_predictions = decode_predictions(predictions, top=3)[0]
+        decoded = decode_predictions(predictions, top=3)[0]
         
-        # Форматируем результаты
         results = []
-        for _, class_name, probability in decoded_predictions:
-            # Преобразуем snake_case в нормальный текст
-            class_text = class_name.replace('_', ' ').title()
+        for _, class_name, probability in decoded:
+            readable_name = class_name.replace('_', ' ').title()
             results.append({
-                'class': class_text,
+                'class': readable_name,
                 'probability': round(probability * 100, 2)
             })
         
-        print(f"✅ Классификация завершена: {results}")
+        print(f"Классификация завершена")
         return results
-        
-    except Exception as e:
-        print(f"❌ Ошибка нейросети: {e}")
-        # Fallback на MobileNet если EfficientNet не работает
-        try:
-            print("🔄 Пробую MobileNetV2...")
-            from tensorflow.keras.applications import MobileNetV2
-            from tensorflow.keras.applications.mobilenet_v2 import preprocess_input as preprocess_mobilenet
-            from tensorflow.keras.applications.mobilenet_v2 import decode_predictions as decode_mobilenet
-            
-            model = MobileNetV2(weights='imagenet')
-            img = Image.open(image_path).convert('RGB')
-            img = img.resize((224, 224))
-            img_array = np.array(img)
-            img_array = np.expand_dims(img_array, axis=0)
-            img_array = preprocess_mobilenet(img_array)
-            
-            predictions = model.predict(img_array, verbose=0)
-            decoded = decode_mobilenet(predictions, top=3)[0]
-            
-            results = []
-            for _, class_name, probability in decoded:
-                results.append({
-                    'class': class_name.replace('_', ' ').title(),
-                    'probability': round(probability * 100, 2)
-                })
-            
-            return results
-        except Exception as e2:
-            print(f"❌ Обе нейросети не сработали: {e2}")
-            return []
+
 
 def analyze_colors(image_path):
     """Анализ распределения цветов в изображении"""
@@ -310,6 +280,7 @@ if __name__ == '__main__':
     os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Отключаем oneDNN
     
     app.run(host='0.0.0.0', port=port, debug=debug, threaded=True)
+
 
 
 
