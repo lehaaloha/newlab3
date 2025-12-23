@@ -125,15 +125,13 @@ def classify_image_with_cnn(image_path):
             return []
 
 def analyze_colors(image_path):
-    """Анализ распределения цветов в изображении"""
+    def simple_color_chart(image_path):
+    """Очень простой анализ цветов для графика"""
     try:
         img = Image.open(image_path)
-        img.thumbnail((300, 300))  # Уменьшаем для скорости
+        img.thumbnail((100, 100))  # Уменьшаем
         
-        img_array = np.array(img)
-        if img_array.shape[-1] == 4:
-            img_array = img_array[:, :, :3]
-        
+        img_array = np.array(img.convert('RGB'))
         pixels = img_array.reshape(-1, 3)
         
         # Средние значения
@@ -141,48 +139,24 @@ def analyze_colors(image_path):
         avg_g = int(np.mean(pixels[:, 1]))
         avg_b = int(np.mean(pixels[:, 2]))
         
-        # Преобладающий цвет
-        color_diffs = {
-            'Красный': avg_r - (avg_g + avg_b) / 2,
-            'Зеленый': avg_g - (avg_r + avg_b) / 2,
-            'Синий': avg_b - (avg_r + avg_g) / 2
-        }
-        dominant = max(color_diffs, key=color_diffs.get)
+        # Проценты RGB
+        total = avg_r + avg_g + avg_b
+        if total > 0:
+            red_pct = int((avg_r / total) * 100)
+            green_pct = int((avg_g / total) * 100)
+            blue_pct = int((avg_b / total) * 100)
+        else:
+            red_pct = green_pct = blue_pct = 33
         
-        # Яркость
-        brightness = int(0.299 * avg_r + 0.587 * avg_g + 0.114 * avg_b)
-        
-        # Топ-3 цвета
-        from collections import Counter
-        rounded = (pixels // 64 * 64)
-        color_counts = Counter(map(tuple, rounded))
-        
-        top_colors = []
-        for (r, g, b), count in color_counts.most_common(3):
-            percent = round(count / len(pixels) * 100, 1)
-            top_colors.append({
-                'rgb': f'rgb({r}, {g}, {b})',
-                'hex': f'#{r:02x}{g:02x}{b:02x}',
-                'percent': percent
-            })
-        
-        color_info = {
-            'avg_rgb': f'RGB({avg_r}, {avg_g}, {avg_b})',
+        return {
             'hex_color': f'#{avg_r:02x}{avg_g:02x}{avg_b:02x}',
-            'dominant_color': dominant,
-            'brightness': brightness,
-            'brightness_percent': round(brightness / 255 * 100, 1),
-            'width': img.width,
-            'height': img.height,
-            'total_pixels': len(pixels),
-            'top_colors': top_colors
+            'red': red_pct,
+            'green': green_pct,
+            'blue': blue_pct
         }
         
-        return color_info
-        
-    except Exception as e:
-        print(f"❌ Ошибка анализа цветов: {e}")
-        return None
+    except:
+        return {'hex_color': '#808080', 'red': 33, 'green': 33, 'blue': 33}
 
 def process_image(image_path):
     """Разбивает изображение на 4 части и сдвигает их"""
@@ -313,5 +287,6 @@ if __name__ == '__main__':
     os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Отключаем oneDNN
     
     app.run(host='0.0.0.0', port=port, debug=debug, threaded=True)
+
 
 
