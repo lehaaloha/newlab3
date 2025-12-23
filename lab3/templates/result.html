@@ -180,7 +180,6 @@
         {% if classification_results %}
 <h2>Результаты анализа нейросети (ONNX)</h2>
 <div style="margin: 20px 0; padding: 15px; background: #f0f8ff; border-radius: 5px;">
-    <p>Легкая нейросеть ONNX проанализировала изображение:</p>
     
     {% for result in classification_results %}
     <div style="margin: 10px 0; padding: 10px; background: white; border-radius: 5px; border-left: 4px solid #4CAF50;">
@@ -194,15 +193,13 @@
     </div>
     {% endfor %}
     
-    <div style="margin-top: 15px; padding: 10px; background: #e8f5e9; border-radius: 5px; font-size: 14px;">
-        <strong>Технология:</strong> Используется оптимизированная нейросеть ONNX для быстрой обработки на сервере.
-    </div>
-</div>
+    
 {% endif %}
         
         <a href="/" class="back-button">Обработать новое изображение</a>
     </div>
 </body>
 </html>
+
 
 
