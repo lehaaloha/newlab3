@@ -110,6 +110,14 @@
             {% if site_key %}
             <div class="g-recaptcha" data-sitekey="{{ site_key }}"></div>
             {% endif %}
+
+
+            <div class="form-group" style="margin: 15px 0;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="add_watermark" value="yes" style="margin-right: 10px;">
+                        Водяной знак
+                </label>
+            </div>
             
             <button type="submit">Обработать изображение</button>
         </form>
@@ -126,3 +134,4 @@
     </div>
 </body>
 </html>
+
