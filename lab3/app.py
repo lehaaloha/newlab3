@@ -1,7 +1,7 @@
 from flask import Flask, request, render_template, flash, redirect, send_from_directory
 from werkzeug.utils import secure_filename
 import os
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from datetime import datetime
 
@@ -49,15 +49,101 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
+def add_watermark(image_path, watermark_text="© Image Processor"):
+    """Добавляет водяной знак на изображение"""
+    try:
+        print(f"Добавление водяного знака: {watermark_text}")
+        
+        # Открываем изображение
+        img = Image.open(image_path).convert("RGBA")
+        width, height = img.size
+        
+        # Создаем слой для водяного знака
+        watermark_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(watermark_layer)
+        
+        # Пытаемся использовать красивый шрифт
+        font_size = min(width, height) // 25  # Размер шрифта зависит от размера изображения
+        if font_size < 12:
+            font_size = 12
+        elif font_size > 48:
+            font_size = 48
+            
+        try:
+            # Пробуем загрузить системный шрифт
+            font = ImageFont.truetype("arial.ttf", font_size)
+        except:
+            try:
+                # Пробуем другой шрифт
+                font = ImageFont.truetype("DejaVuSans.ttf", font_size)
+            except:
+                # Используем стандартный шрифт
+                font = ImageFont.load_default()
+        
+        # Получаем размер текста
+        try:
+            bbox = draw.textbbox((0, 0), watermark_text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+        except:
+            # Для старых версий Pillow
+            text_width, text_height = draw.textsize(watermark_text, font=font)
+        
+        # Позиция водяного знака (правый нижний угол с отступом 20px)
+        x = width - text_width - 20
+        y = height - text_height - 20
+        
+        # Делаем координаты положительными (если текст слишком большой)
+        if x < 10:
+            x = 10
+        if y < 10:
+            y = 10
+        
+        # Рисуем водяной знак с прозрачностью и тенью для лучшей видимости
+        
+        # Тень (слегка смещенная)
+        draw.text((x + 2, y + 2), watermark_text, font=font, 
+                 fill=(0, 0, 0, 120))  # Черный с прозрачностью
+        
+        # Основной текст
+        draw.text((x, y), watermark_text, font=font, 
+                 fill=(255, 255, 255, 180))  # Белый с прозрачностью
+        
+        # Объединяем водяной знак с оригинальным изображением
+        watermarked = Image.alpha_composite(img, watermark_layer)
+        
+        # Конвертируем обратно в RGB (JPG не поддерживает прозрачность)
+        watermarked = watermarked.convert("RGB")
+        
+        # Сохраняем с тем же именем файла
+        watermarked.save(image_path, quality=95)
+        
+        print(f"Водяной знак успешно добавлен")
+        return True
+        
+    except Exception as e:
+        print(f"Ошибка добавления водяного знака: {e}")
+        # Пробуем простой метод
+        try:
+            img = Image.open(image_path)
+            draw = ImageDraw.Draw(img)
+            
+            # Простая надпись в углу
+            draw.text((img.width - 200, img.height - 30), 
+                     watermark_text, 
+                     fill=(255, 255, 255))
+            
+            img.save(image_path)
+            print(f"Добавлен простой водяной знак")
+            return True
+        except Exception as e2:
+            print(f"Даже простой водяной знак не сработал: {e2}")
+            return False
+
 def classify_with_onnx_ai(image_path):
     """Классификация с помощью легкой ONNX нейросети"""
     try:
         print("Запуск нейросети ONNX для классификации...")
-        
-        # Имитация работы ONNX модели (реальная весит ~5MB)
-        from PIL import Image
-        import numpy as np
-        import hashlib
         
         img = Image.open(image_path).convert('RGB')
         img_small = img.resize((128, 128))
@@ -72,21 +158,6 @@ def classify_with_onnx_ai(image_path):
         # Анализ цветов (имитация нейросетевых признаков)
         avg_color = np.mean(img_array, axis=(0, 1))
         color_std = np.std(img_array)
-        
-        # Генерируем "нейросетевые" результаты на основе характеристик
-        hash_val = hash(tuple(img_array.flatten())) % 1000
-        
-        # Категории как у настоящей нейросети
-        categories = [
-            ("Пейзаж/Природа", 85),
-            ("Животное/Птица", 78),
-            ("Транспорт/Автомобиль", 72),
-            ("Архитектура/Здание", 80),
-            ("Человек/Портрет", 75),
-            ("Еда/Напитки", 70),
-            ("Техника/Электроника", 68),
-            ("Текст/Документ", 65)
-        ]
         
         # Выбираем категории на основе характеристик изображения
         results = []
@@ -271,8 +342,22 @@ def upload_image():
         
         file.save(file_path)
         
-        # Обработка изображения
+        # Проверяем нужен ли водяной знак
+        add_watermark_flag = request.form.get('add_watermark') == 'yes'
+        watermark_text = request.form.get('watermark_text', '© Image Processor')
+        
+        watermark_added = False
+        if add_watermark_flag:
+            # Добавляем водяной знак на оригинальное изображение
+            watermark_added = add_watermark(file_path, watermark_text)
+        
+        # Обработка изображения (разбиение на 4 части)
         processed_name = process_image(file_path)
+        
+        # Если был запрошен водяной знак, добавляем его и на обработанное изображение
+        if add_watermark_flag:
+            processed_path = os.path.join(app.config['UPLOAD_FOLDER'], processed_name)
+            watermark_added = add_watermark(processed_path, watermark_text)
         
         # Анализ цветов
         color_analysis = analyze_colors(file_path)
@@ -284,7 +369,9 @@ def upload_image():
                              original_image=unique_name,
                              processed_image=processed_name,
                              color_analysis=color_analysis,
-                             classification_results=classification_results)
+                             classification_results=classification_results,
+                             watermark_added=watermark_added,
+                             watermark_text=watermark_text)
         
     except Exception as e:
         print(f"Ошибка: {e}")
